@@ -10,7 +10,11 @@ namespace L1Analizator
     public class RegExes
     {
         private static Regex identifierRegex, constantRegex, numericalIndexRegex, arrayLengthRegex;
-        private static string[] RelationsArray = { "<" , "<=" , "==" , "!=" , ">=" , ">" };
+        
+        public static string[] RelationsArray = { "<" , "<=" , "==" , "!=" , ">=" , ">" };
+        public static string[] OperatorsArray = { "+", "-", "*", "/"};
+        public static string[] KeywordsArray = { "while", "if", "else", "std", "cin", "cout", "int", "float"};
+
 
         public static Regex getIdentifierRegex()
         {
@@ -48,6 +52,11 @@ namespace L1Analizator
         public static bool isRelation(string atom)
         {
             return RelationsArray.Contains(atom);
+        }
+
+        public static bool isIdentifier(string atom)
+        {
+            return getIdentifierRegex().IsMatch(atom) && !KeywordsArray.Contains(atom);
         }
     }
 }

@@ -31,8 +31,9 @@ namespace L1Analizator
             analizator.run();
             
             
-
+#if DEBUG
             System.Console.ReadKey();
+#endif
         }
 
     }

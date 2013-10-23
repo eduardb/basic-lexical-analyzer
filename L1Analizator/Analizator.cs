@@ -23,9 +23,6 @@ namespace L1Analizator
 
             atoms = new string[sourceCode.Length][];
 
-            Regex identifierRegex = RegExes.getIdentifierRegex();
-
-
             for (int i = 0; i < sourceCode.Length; i++)
             {
                 sourceCode[i] = sourceCode[i].
@@ -57,10 +54,15 @@ namespace L1Analizator
                 Regex r2 = new Regex(@"(?<!<)<(?!(<|=))");
                 sourceCode[i] = r2.Replace(sourceCode[i], " < ");
 
-                Regex r3 = new Regex(@"(?<!<)=(?!(<|=))");
+                Regex r3 = new Regex(@"(?<!(<|!|=))=(?!(<|=))");
                 sourceCode[i] = r3.Replace(sourceCode[i], " = ");
 
                 atoms[i] = sourceCode[i].Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+#if DEBUG
+                System.Console.WriteLine(string.Join(" ", atoms[i]));
+#endif
+
             }
         }
 
@@ -103,6 +105,8 @@ namespace L1Analizator
             {
                 checkMain(ref i, ref j);
                 //break;
+
+                System.Console.WriteLine("Nu exista erori in codul sursa");
             }
             catch (AnalizatorException ex)
             {
@@ -155,6 +159,20 @@ namespace L1Analizator
             // check block statement
             checkBlockStatement(ref line, ref j);
 
+            try
+            {
+                getNextAtom(ref line, ref j, true);
+                throw new AnalizatorException("Exista instructiuni dupa inchiderea functiei main!", line, j, 14);
+            }
+            catch (AnalizatorException ex)
+            {
+                if (ex.code != 13)
+                    throw ex;
+            }
+            
+           // if (!atEnd(line, j))
+                
+
             
         }
 
@@ -171,6 +189,8 @@ namespace L1Analizator
             // last }
             if (atoms[line][j] != "}")
                 throw new AnalizatorException("Sintaxa 'bloc de cod' incorecta", line, j, 3);
+
+            //getNextAtom(ref line, ref j, true);
         }
 
         private void checkStatementList(ref int line, ref int j)
@@ -194,17 +214,164 @@ namespace L1Analizator
             }
             else if (atoms[line][j] == "if" || atoms[line][j] == "while") // if/while statement
             {
-                ;
+                checkStructStatement(ref line, ref j);
             }
-            else if (RegExes.getIdentifierRegex().IsMatch(atoms[line][j])) // assigment statement;
+            else if (RegExes.isIdentifier(atoms[line][j])) // assigment statement;
             {
-                ;
+                checkAssigmentStatement(ref line, ref j);
             }
             else // ceva neasteptat aici, eroare
             {
                 throw new AnalizatorException("Sintaxa instructiune incorecta", line, j, 4);
             }
+            
+            //if (atEnd(line, j))
+            //    return;
+
+           // getNextAtom(ref line, ref j, true);
+        }
+
+        private void checkAssigmentStatement(ref int line, ref int j)
+        {
+            if (!RegExes.isIdentifier(atoms[line][j]))
+                throw new AnalizatorException("Sintaxa atribuire incorecta", line, j, 10);
+
             getNextAtom(ref line, ref j, true);
+
+            if (atoms[line][j] == "[")// it's array item
+            {
+                getNextAtom(ref line, ref j, true);
+
+                if (!RegExes.isIndex(atoms[line][j]))
+                    throw new AnalizatorException("Sintaxa atribuire incorecta", line, j, 10);
+
+                getNextAtom(ref line, ref j, true);
+
+                if (atoms[line][j] != "]")
+                    throw new AnalizatorException("Sintaxa atribuire incorecta", line, j, 10);
+
+                getNextAtom(ref line, ref j, true);
+            }
+
+            if (atoms[line][j] != "=")
+                throw new AnalizatorException("Sintaxa atribuire incorecta", line, j, 10);
+
+            getNextAtom(ref line, ref j, true);
+
+            checkExpression(ref line, ref j);
+
+            if (atoms[line][j] != ";")
+                throw new AnalizatorException("Sintaxa atribuire incorecta", line, j, 10);
+
+            getNextAtom(ref line, ref j, true);
+        }
+
+        private void checkStructStatement(ref int line, ref int j)
+        {
+            string type = atoms[line][j];
+
+            if (atoms[line][j] != "if" && atoms[line][j] != "while")
+                throw new AnalizatorException("Sintaxa instructiune compusa incorecta", line, j, 7);
+
+            getNextAtom(ref line, ref j, true);
+
+            if (atoms[line][j] != "(")
+                throw new AnalizatorException("Sintaxa instructiune compusa incorecta", line, j, 7);
+
+            checkCondition(ref line, ref j);
+
+            getNextAtom(ref line, ref j, true);
+
+            if (atoms[line][j] == "{")
+            {
+                checkBlockStatement(ref line, ref j);
+                getNextAtom(ref line, ref j, true);
+            }
+            else
+                checkStatement(ref line, ref j);
+
+            if (type == "if" && atoms[line][j] == "else")
+            {
+                getNextAtom(ref line, ref j, true);
+
+                if (atoms[line][j] == "{")
+                {
+                    checkBlockStatement(ref line, ref j);
+                    getNextAtom(ref line, ref j, true);
+                }
+                else
+                    checkStatement(ref line, ref j);
+            }
+        }
+
+        private void checkCondition(ref int line, ref int j)
+        {
+            if (atoms[line][j] != "(")
+                throw new AnalizatorException("Sintaxa conditie incorecta", line, j, 8);
+
+            getNextAtom(ref line, ref j, true);
+
+            checkExpression(ref line, ref j);
+
+            if (!RegExes.RelationsArray.Contains(atoms[line][j]))
+                throw new AnalizatorException("Sintaxa conditie incorecta", line, j, 8);
+
+            getNextAtom(ref line, ref j, true);
+
+            checkExpression(ref line, ref j);
+
+            if (atoms[line][j] != ")")
+                throw new AnalizatorException("Sintaxa conditie incorecta", line, j, 8);
+        }
+
+        private void checkExpression(ref int line, ref int j)
+        {
+            if (!RegExes.isIdentifier(atoms[line][j]) && !RegExes.getConstantRegex().IsMatch(atoms[line][j]))
+                throw new AnalizatorException("Sintaxa expresie aritmetica incorecta", line, j, 9);
+
+            getNextAtom(ref line, ref j, true);
+
+            if (atoms[line][j] == "[")// it's array item
+            {
+                getNextAtom(ref line, ref j, true);
+
+                if (!RegExes.isIndex(atoms[line][j]))
+                    throw new AnalizatorException("Sintaxa atribuire incorecta", line, j, 10);
+
+                getNextAtom(ref line, ref j, true);
+
+                if (atoms[line][j] != "]")
+                    throw new AnalizatorException("Sintaxa atribuire incorecta", line, j, 10);
+
+                getNextAtom(ref line, ref j, true);
+            }
+
+            while (RegExes.OperatorsArray.Contains(atoms[line][j]))
+            {
+                getNextAtom(ref line, ref j, true);
+
+                if (!RegExes.isIdentifier(atoms[line][j]) && !RegExes.getConstantRegex().IsMatch(atoms[line][j]))
+                    throw new AnalizatorException("Sintaxa expresie aritmetica incorecta", line, j, 9);
+
+                getNextAtom(ref line, ref j, true);
+
+                if (atoms[line][j] == "[")// it's array item
+                {
+                    getNextAtom(ref line, ref j, true);
+
+                    if (!RegExes.isIndex(atoms[line][j]))
+                        throw new AnalizatorException("Sintaxa atribuire incorecta", line, j, 10);
+
+                    getNextAtom(ref line, ref j, true);
+
+                    if (atoms[line][j] != "]")
+                        throw new AnalizatorException("Sintaxa atribuire incorecta", line, j, 10);
+
+                    getNextAtom(ref line, ref j, true);
+                }
+
+                
+            }
         }
 
         private void checkIOStatement(ref int line, ref int j)
@@ -228,14 +395,12 @@ namespace L1Analizator
 
                 getNextAtom(ref line, ref j, true);
 
-                if (!RegExes.getIdentifierRegex().IsMatch(atoms[line][j]))
+                if (!RegExes.isIdentifier(atoms[line][j]))
                     throw new AnalizatorException("Sintaxa instructiune IO incorecta", line, j, 6);
 
                 getNextAtom(ref line, ref j, true);
 
-                if (atoms[line][j] == ";")
-                    return;
-                else if (atoms[line][j] == "[")// it's array item
+                if (atoms[line][j] == "[")// it's array item
                 {
                     getNextAtom(ref line, ref j, true);
 
@@ -252,7 +417,7 @@ namespace L1Analizator
                     if (atoms[line][j] != ";")
                         throw new AnalizatorException("Sintaxa instructiune IO incorecta", line, j, 6);
                 }
-                else
+                else if (atoms[line][j] != ";")
                     throw new AnalizatorException("Sintaxa instructiune IO incorecta", line, j, 6);
             }
             else if (atoms[line][j] == "cout")
@@ -261,9 +426,47 @@ namespace L1Analizator
 
                 if (atoms[line][j] != "<<")
                     throw new AnalizatorException("Sintaxa instructiune IO incorecta", line, j, 6);
+
+                getNextAtom(ref line, ref j, true);
+
+                if (RegExes.getConstantRegex().IsMatch(atoms[line][j]))
+                {
+                    getNextAtom(ref line, ref j, true);
+
+                    if (atoms[line][j] != ";")
+                        throw new AnalizatorException("Sintaxa instructiune IO incorecta", line, j, 6);
+                }
+                else if (RegExes.isIdentifier(atoms[line][j]))
+                {
+                    getNextAtom(ref line, ref j, true);
+
+                    if (atoms[line][j] == "[")// it's array item
+                    {
+                        getNextAtom(ref line, ref j, true);
+
+                        if (!RegExes.isIndex(atoms[line][j]))
+                            throw new AnalizatorException("Sintaxa instructiune IO incorecta", line, j, 6);
+
+                        getNextAtom(ref line, ref j, true);
+
+                        if (atoms[line][j] != "]")
+                            throw new AnalizatorException("Sintaxa instructiune IO incorecta", line, j, 6);
+
+                        getNextAtom(ref line, ref j, true);
+
+                        if (atoms[line][j] != ";")
+                            throw new AnalizatorException("Sintaxa instructiune IO incorecta", line, j, 6);
+                    }
+                    else if (atoms[line][j] != ";")
+                        throw new AnalizatorException("Sintaxa instructiune IO incorecta", line, j, 6);
+                }
+                else
+                    throw new AnalizatorException("Sintaxa instructiune IO incorecta", line, j, 6);
             }
             else
                 throw new AnalizatorException("Sintaxa instructiune IO incorecta", line, j, 6);
+
+            getNextAtom(ref line, ref j, true);
         }
 
         private void checkDeclaration(ref int line, ref int j)
@@ -276,16 +479,14 @@ namespace L1Analizator
 
             getNextAtom(ref line, ref j, true);
 
-            if (!RegExes.getIdentifierRegex().IsMatch(atoms[line][j]))
+            if (!RegExes.isIdentifier(atoms[line][j]))
             {
                 throw new AnalizatorException("Sintaxa declarare incorecta", line, j, 5);
             }
 
             getNextAtom(ref line, ref j, true);
-
-            if (atoms[line][j] == ";")
-                return;
-            else if (atoms[line][j] == "[") // it's array
+            
+            if (atoms[line][j] == "[") // it's array
             {
                 getNextAtom(ref line, ref j, true);
 
@@ -302,29 +503,43 @@ namespace L1Analizator
                 if (atoms[line][j] != ";")
                     throw new AnalizatorException("Sintaxa declarare incorecta", line, j, 5);
             }
-            else // error
+            else if (atoms[line][j] != ";")// error
                 throw new AnalizatorException("Sintaxa declarare incorecta", line, j, 5);
+
+            getNextAtom(ref line, ref j, true);
         }
 
         private string getAtom(int offset, ref int i, ref int j, bool updateIJ)
         {
             string rez = null;
 
+            
             int ii = i, jj = j;
 
-            while (offset > 0)
+            int lasti, lastj;
+            lasti = ii; lastj = jj;
+
+            try
             {
-                if (atoms[ii].Length > jj + 1)
+                while (offset > 0)
                 {
-                    jj++;
-                    rez = atoms[ii][jj];
-                    offset--;
+                    if (atoms[ii].Length > jj + 1)
+                    {
+                        jj++; lastj = jj;
+                        rez = atoms[ii][jj];
+                        offset--;
+                    }
+                    else
+                    {
+                        ii++;
+                        jj = -1;
+                    }
+
                 }
-                else
-                {
-                    ii++;
-                    jj = -1;
-                }
+            }
+            catch (IndexOutOfRangeException)
+            {
+                throw new AnalizatorException("S-a ajuns la sfarsitul fisierului inaintea inchiderii functiei main", atoms.Length - 1, atoms[atoms.Length-1].Length - 1, 13);
             }
 
             if (updateIJ)

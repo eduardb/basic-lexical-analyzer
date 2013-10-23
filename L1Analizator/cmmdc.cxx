@@ -12,8 +12,8 @@ int main()
 	{
 		if (a>b)
 			a = a - b;
-		else
+		else 
 			b = b - a;
 	}
 	std::cout << a;
-}
+} 
