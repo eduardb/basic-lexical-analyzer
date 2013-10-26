@@ -30,7 +30,6 @@ namespace L1Analizator
             analizator.init();
             analizator.run();
             
-            
 #if DEBUG
             System.Console.ReadKey();
 #endif

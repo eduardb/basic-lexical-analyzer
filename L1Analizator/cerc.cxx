@@ -13,4 +13,3 @@ int main()
 	std::cout << perim;
 	std::cout << aria;
 }
-	
