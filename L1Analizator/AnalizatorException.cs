@@ -8,13 +8,15 @@ namespace L1Analizator
 {
     class AnalizatorException : Exception
     {
-        public int i, j, code;
-
-        public AnalizatorException(string msg, int i, int j, int code) : base(msg)
+        public AnalizatorException(string msg, int i, int j, int code)
+            : base(msg)
         {
             this.i = i;
             this.j = j;
             this.code = code;
         }
+        public int code;
+        public int i;
+        public int j;
     }
 }

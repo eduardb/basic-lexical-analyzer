@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace L1Analizator
 {
-    class Program
+    class Program : System.Object
     {
         static void Main(string[] args)
         {
@@ -29,11 +29,10 @@ namespace L1Analizator
             Analizator analizator = new Analizator(args[0]);
             analizator.init();
             analizator.run();
-            
+
 #if DEBUG
             System.Console.ReadKey();
 #endif
         }
-
     }
 }
